@@ -149,3 +149,63 @@ sr.reveal(`.home__name, .home__info,
            .about__container .section__title-1, .about__info,
            .contact__social, .contact__data`, { origin: 'left' });
 sr.reveal(`.services__card, .projects__card`, { interval: 100 });
+
+
+/*=============== GOOGLE TAG MANAGER CUSTOM EVENTS ===============*/
+// 1. Track all hyperlink clicks
+document.querySelectorAll('a').forEach(link => {
+  link.addEventListener('click', function(e) {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      'event': 'hyperlink_click',
+      'link_url': this.href,
+      'link_text': this.textContent.trim()
+    });
+  });
+});
+
+// 2. Track scroll depth (25%, 50%, 75%, 100%)
+let scrollDepths = [25, 50, 75, 100];
+let scrollDepthsTriggered = {};
+scrollDepths.forEach(depth => scrollDepthsTriggered[depth] = false);
+window.addEventListener('scroll', function() {
+  const scrollTop = window.scrollY;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const scrolled = (scrollTop / docHeight) * 100;
+  scrollDepths.forEach(depth => {
+    if (!scrollDepthsTriggered[depth] && scrolled >= depth) {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        'event': 'scroll_depth',
+        'scroll_percent': depth
+      });
+      scrollDepthsTriggered[depth] = true;
+    }
+  });
+});
+
+// 3. Track time spent in each section
+const sectionTimes = {};
+const sectionStartTimes = {};
+const sectionsForTime = document.querySelectorAll('section[id]');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const id = entry.target.getAttribute('id');
+    if (entry.isIntersecting) {
+      sectionStartTimes[id] = Date.now();
+    } else if (sectionStartTimes[id]) {
+      const timeSpent = (Date.now() - sectionStartTimes[id]) / 1000; // seconds
+      sectionTimes[id] = (sectionTimes[id] || 0) + timeSpent;
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        'event': 'section_time_spent',
+        'section_id': id,
+        'time_spent_seconds': Math.round(sectionTimes[id])
+      });
+      delete sectionStartTimes[id];
+    }
+  });
+}, { threshold: 0.5 }); // 50% of section in view
+
+sectionsForTime.forEach(section => observer.observe(section));
